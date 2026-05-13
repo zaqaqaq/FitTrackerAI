@@ -15,7 +15,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     trainings = relationship("Training", back_populates="owner", cascade="all, delete-orphan")
-    logs = relationship("ExerciseLog", back_populates="user")
+    logs = relationship("ExerciseLog", back_populates="user", cascade="all, delete-orphan")
+    recipes = relationship("Recipe", back_populates="user", cascade="all, delete-orphan")
 
 
 class Training(Base):
@@ -37,10 +38,30 @@ class ExerciseLog(Base):
     training_id = Column(Integer, ForeignKey("trainings.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     exercise_name = Column(String, nullable=False)
-    weight = Column(Float)  # кг
-    reps = Column(Integer)  # повторения
-    sets = Column(Integer, default=1)  # подходы
+    weight = Column(Float)
+    reps = Column(Integer)
+    sets = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     training = relationship("Training", back_populates="exercises")
     user = relationship("User", back_populates="logs")
+
+
+class Recipe(Base):
+    __tablename__ = "recipes"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    ingredients = Column(String, nullable=False)
+    instructions = Column(String, nullable=False)
+    cooking_time = Column(Integer, default=30)
+    calories = Column(Integer, default=0)
+    protein = Column(Integer, default=0)
+    fats = Column(Integer, default=0)
+    carbs = Column(Integer, default=0)
+    image_url = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="recipes")

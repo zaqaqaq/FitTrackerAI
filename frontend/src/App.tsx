@@ -2,6 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import ProgressChart from './components/ProgressChart';
 import Achievements from './components/Achievements';
+import OneRMCalculator from './components/OneRMCalculator';
+import ActivityCalendar from './components/ActivityCalendar';
+import RecipeBook from './components/RecipeBook';
+import RecipeDetail from './components/RecipeDetail';
 
 // ============ Вспомогательная функция для API запросов ============
 async function apiRequest(url: string, options: RequestInit = {}) {
@@ -52,6 +56,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <a href="/trainings" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-gray-700">Тренировки</a>
               <a href="/journal" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-gray-700">Журнал</a>
               <a href="/ai" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-gray-700">AI Тренер</a>
+              <a href="/recipes" className="text-gray-300 hover:text-white px-3 py-2 rounded-lg hover:bg-gray-700">🍳 Рецепты</a>
               <button onClick={handleLogout} className="text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-gray-700">Выход</button>
             </div>
             <div className="md:hidden flex items-center">
@@ -481,6 +486,7 @@ function TrainingsPage() {
 
 // ============ Journal Page (с графиками прогресса) ============
 // ============ Journal Page (с редактированием и удалением подходов) ============
+// ============ Journal Page (с калькулятором 1 ПМ и календарём активности) ============
 function JournalPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [trainings, setTrainings] = useState<any[]>([]);
@@ -579,17 +585,302 @@ function JournalPage() {
 
   if (loading) return <div className="text-white text-center py-8">Загрузка...</div>;
 
+  // ============ Калькулятор 1 ПМ (встроенный) ============
+  const OneRMCalculatorComponent = () => {
+    const [calcWeight, setCalcWeight] = useState<number>(100);
+    const [calcReps, setCalcReps] = useState<number>(5);
+    const [calcResult, setCalcResult] = useState<any>(null);
+
+    const calculateBrzycki = (weight: number, reps: number): number => {
+      return Math.round(weight / (1.0278 - 0.0278 * reps));
+    };
+
+    const calculateEpley = (weight: number, reps: number): number => {
+      return Math.round(weight * (1 + 0.0333 * reps));
+    };
+
+    const calculateLander = (weight: number, reps: number): number => {
+      return Math.round((100 * weight) / (101.3 - 2.67123 * reps));
+    };
+
+    const calculateOneRM = () => {
+      if (calcWeight <= 0 || calcReps <= 0 || calcReps > 12) {
+        alert('Введите корректные данные (вес > 0, повторения 1-12)');
+        return;
+      }
+      setCalcResult({
+        brzycki: calculateBrzycki(calcWeight, calcReps),
+        epley: calculateEpley(calcWeight, calcReps),
+        lander: calculateLander(calcWeight, calcReps),
+        average: Math.round((calculateBrzycki(calcWeight, calcReps) + calculateEpley(calcWeight, calcReps) + calculateLander(calcWeight, calcReps)) / 3)
+      });
+    };
+
+    return (
+      <div className="bg-gray-800 rounded-xl p-6">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
+          <span className="text-2xl">🏋️</span> Калькулятор 1 ПМ
+        </h3>
+        <p className="text-gray-400 text-sm mb-4">Рассчитай свой максимальный вес в одном повторении</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Вес на штанге (кг)</label>
+              <input
+                type="number"
+                value={calcWeight}
+                onChange={(e) => setCalcWeight(Number(e.target.value))}
+                className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Количество повторений</label>
+              <input
+                type="number"
+                value={calcReps}
+                onChange={(e) => setCalcReps(Math.min(Number(e.target.value), 12))}
+                className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                min="1"
+                max="12"
+              />
+              <p className="text-xs text-gray-500 mt-1">* Наиболее точный расчёт при 2-8 повторениях</p>
+            </div>
+            <button
+              onClick={calculateOneRM}
+              className="w-full p-3 bg-green-500 hover:bg-green-600 rounded-lg transition font-semibold"
+            >
+              Рассчитать 1 ПМ
+            </button>
+          </div>
+
+          {calcResult && (
+            <div className="space-y-4">
+              <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-lg p-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-400 mb-1">Твой предполагаемый 1 ПМ</p>
+                  <p className="text-4xl font-bold text-white">{calcResult.average} кг</p>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Бжицки</p>
+                      <p className="text-lg font-semibold text-green-400">{calcResult.brzycki}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Эпли</p>
+                      <p className="text-lg font-semibold text-green-400">{calcResult.epley}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-400">Лэндер</p>
+                      <p className="text-lg font-semibold text-green-400">{calcResult.lander}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gray-700/30 rounded-lg p-4">
+                <p className="text-sm font-semibold text-white mb-2">📊 Рекомендации по весам:</p>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Сила (1-3 повторения):</span>
+                    <span className="text-white font-semibold">{Math.round(calcResult.average * 0.95)}-{calcResult.average} кг</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Гипертрофия (6-10 повторений):</span>
+                    <span className="text-white font-semibold">{Math.round(calcResult.average * 0.75)}-{Math.round(calcResult.average * 0.85)} кг</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Выносливость (12+ повторений):</span>
+                    <span className="text-white font-semibold">{Math.round(calcResult.average * 0.65)}-{Math.round(calcResult.average * 0.7)} кг</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ============ Календарь активности (встроенный) ============
+  const ActivityCalendarComponent = () => {
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [calendarData, setCalendarData] = useState<any[]>([]);
+    const [activityStats, setActivityStats] = useState({
+      currentStreak: 0,
+      bestStreak: 0,
+      totalWorkouts: 0,
+      avgPerWeek: 0
+    });
+
+    const getWorkoutDays = () => {
+      const workoutDates = new Set(
+        logs.map(log => new Date(log.created_at).toDateString())
+      );
+      return workoutDates;
+    };
+
+    const calculateStreak = () => {
+      const workoutDates = getWorkoutDays();
+      const today = new Date().toDateString();
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+
+      if (!workoutDates.has(today) && !workoutDates.has(yesterday)) return 0;
+
+      let streak = 0;
+      let currentDate = new Date();
+
+      while (true) {
+        const dateStr = currentDate.toDateString();
+        if (workoutDates.has(dateStr)) {
+          streak++;
+          currentDate.setDate(currentDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      return streak;
+    };
+
+    const calculateBestStreak = () => {
+      const workoutDates = getWorkoutDays();
+      const sortedDates = Array.from(workoutDates).sort();
+
+      let currentStreak = 1;
+      let bestStreak = 1;
+
+      for (let i = 1; i < sortedDates.length; i++) {
+        const prev = new Date(sortedDates[i - 1]);
+        const curr = new Date(sortedDates[i]);
+        const diffDays = Math.floor((curr.getTime() - prev.getTime()) / 86400000);
+
+        if (diffDays === 1) {
+          currentStreak++;
+          bestStreak = Math.max(bestStreak, currentStreak);
+        } else {
+          currentStreak = 1;
+        }
+      }
+      return bestStreak;
+    };
+
+    const generateCalendar = () => {
+      const workoutDays = getWorkoutDays();
+      const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1);
+      const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
+      const startingDayOfWeek = firstDayOfMonth.getDay();
+
+      const daysInMonth = lastDayOfMonth.getDate();
+      const calendar = [];
+
+      const adjustedStartDay = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1;
+
+      for (let i = 0; i < adjustedStartDay; i++) {
+        calendar.push(null);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(selectedYear, selectedMonth, day);
+        const hasWorkout = workoutDays.has(date.toDateString());
+        calendar.push({ day, hasWorkout, date });
+      }
+
+      setCalendarData(calendar);
+    };
+
+    useEffect(() => {
+      generateCalendar();
+      setActivityStats({
+        currentStreak: calculateStreak(),
+        bestStreak: calculateBestStreak(),
+        totalWorkouts: getWorkoutDays().size,
+        avgPerWeek: Math.round((getWorkoutDays().size / 30) * 7)
+      });
+    }, [logs, selectedMonth, selectedYear]);
+
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+    const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+    return (
+      <div className="bg-gray-800 rounded-xl p-6">
+        <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
+          <span className="text-2xl">📅</span> Календарь активности
+        </h3>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-orange-400">{activityStats.currentStreak}</p>
+            <p className="text-xs text-gray-400">Текущая серия (дней)</p>
+          </div>
+          <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-yellow-400">{activityStats.bestStreak}</p>
+            <p className="text-xs text-gray-400">Лучшая серия (дней)</p>
+          </div>
+          <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-green-400">{activityStats.totalWorkouts}</p>
+            <p className="text-xs text-gray-400">Всего дней с тренировками</p>
+          </div>
+          <div className="bg-gray-700/50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-blue-400">{activityStats.avgPerWeek}</p>
+            <p className="text-xs text-gray-400">В среднем в неделю</p>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center mb-4">
+          <button onClick={() => {
+            if (selectedMonth === 0) {
+              setSelectedMonth(11);
+              setSelectedYear(selectedYear - 1);
+            } else {
+              setSelectedMonth(selectedMonth - 1);
+            }
+          }} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition">◀</button>
+          <h4 className="text-lg font-semibold text-white">{monthNames[selectedMonth]} {selectedYear}</h4>
+          <button onClick={() => {
+            if (selectedMonth === 11) {
+              setSelectedMonth(0);
+              setSelectedYear(selectedYear + 1);
+            } else {
+              setSelectedMonth(selectedMonth + 1);
+            }
+          }} className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition">▶</button>
+          <button onClick={() => {
+            setSelectedMonth(new Date().getMonth());
+            setSelectedYear(new Date().getFullYear());
+          }} className="px-3 py-1 bg-green-500 hover:bg-green-600 rounded-lg text-sm transition">Сегодня</button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+          {weekDays.map(day => <div key={day} className="text-xs text-gray-500 py-1">{day}</div>)}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {calendarData.map((item, idx) => (
+            <div key={idx} className={`aspect-square rounded-lg p-1 text-center transition ${item ? (item.hasWorkout ? 'bg-green-500/30 border border-green-500' : 'bg-gray-700/30') : 'bg-transparent'}`}>
+              {item && <div className="text-sm font-medium text-white">{item.day}</div>}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-center gap-4 mt-4 pt-3 border-t border-gray-700">
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-500"></div><span className="text-xs text-gray-400">Тренировка была</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-gray-700"></div><span className="text-xs text-gray-400">Без тренировки</span></div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-white">Журнал тренировок</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition"
-        >
-          + Добавить подход
-        </button>
+        <button onClick={() => setShowModal(true)} className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition">+ Добавить подход</button>
       </div>
+
+      {/* Калькулятор 1 ПМ */}
+      <OneRMCalculatorComponent />
+
+      {/* Календарь активности */}
+      <ActivityCalendarComponent />
 
       {/* График прогресса */}
       {selectedExercise && logs.length > 0 && (
@@ -602,15 +893,7 @@ function JournalPage() {
           <label className="text-sm text-gray-400 mb-2 block">📊 Показать график для:</label>
           <div className="flex flex-wrap gap-2">
             {uniqueExercises.map((exercise) => (
-              <button
-                key={exercise}
-                onClick={() => setSelectedExercise(exercise)}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  selectedExercise === exercise
-                    ? 'bg-green-500 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
-              >
+              <button key={exercise} onClick={() => setSelectedExercise(exercise)} className={`px-3 py-1.5 rounded-lg text-sm transition ${selectedExercise === exercise ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
                 {exercise}
               </button>
             ))}
@@ -622,86 +905,35 @@ function JournalPage() {
       {logs.length === 0 ? (
         <div className="bg-gray-800 rounded-xl p-12 text-center">
           <p className="text-gray-400">Нет записей о подходах</p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="mt-4 px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition"
-          >
-            Добавить первый подход
-          </button>
+          <button onClick={() => setShowModal(true)} className="mt-4 px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition">Добавить первый подход</button>
         </div>
       ) : (
         <div className="space-y-3">
           {logs.map((log) => (
             <div key={log.id} className="bg-gray-800 rounded-xl p-4 hover:bg-gray-750 transition">
               {editingLog?.id === log.id ? (
-                // Режим редактирования подхода
                 <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={editingLog.exercise_name}
-                    onChange={(e) => setEditingLog({ ...editingLog, exercise_name: e.target.value })}
-                    className="w-full p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Упражнение"
-                  />
+                  <input type="text" value={editingLog.exercise_name} onChange={(e) => setEditingLog({ ...editingLog, exercise_name: e.target.value })} className="w-full p-2 rounded-lg bg-gray-700 text-white" placeholder="Упражнение" />
                   <div className="grid grid-cols-3 gap-2">
-                    <input
-                      type="number"
-                      value={editingLog.weight}
-                      onChange={(e) => setEditingLog({ ...editingLog, weight: Number(e.target.value) })}
-                      className="p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="Вес"
-                    />
-                    <input
-                      type="number"
-                      value={editingLog.reps}
-                      onChange={(e) => setEditingLog({ ...editingLog, reps: Number(e.target.value) })}
-                      className="p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="Повторы"
-                    />
-                    <input
-                      type="number"
-                      value={editingLog.sets}
-                      onChange={(e) => setEditingLog({ ...editingLog, sets: Number(e.target.value) })}
-                      className="p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="Подходы"
-                    />
+                    <input type="number" value={editingLog.weight} onChange={(e) => setEditingLog({ ...editingLog, weight: Number(e.target.value) })} className="p-2 rounded-lg bg-gray-700 text-white" placeholder="Вес" />
+                    <input type="number" value={editingLog.reps} onChange={(e) => setEditingLog({ ...editingLog, reps: Number(e.target.value) })} className="p-2 rounded-lg bg-gray-700 text-white" placeholder="Повторы" />
+                    <input type="number" value={editingLog.sets} onChange={(e) => setEditingLog({ ...editingLog, sets: Number(e.target.value) })} className="p-2 rounded-lg bg-gray-700 text-white" placeholder="Подходы" />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={updateLog} className="flex-1 px-3 py-1 bg-green-500 hover:bg-green-600 rounded-lg text-sm transition">
-                      Сохранить
-                    </button>
-                    <button onClick={() => setEditingLog(null)} className="flex-1 px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded-lg text-sm transition">
-                      Отмена
-                    </button>
+                    <button onClick={updateLog} className="flex-1 p-2 bg-green-500 rounded-lg">Сохранить</button>
+                    <button onClick={() => setEditingLog(null)} className="flex-1 p-2 bg-gray-600 rounded-lg">Отмена</button>
                   </div>
                 </div>
               ) : (
-                // Обычный режим
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{log.exercise_name}</h3>
-                    <p className="text-gray-400 text-sm mt-1">
-                      {log.weight} кг × {log.reps} повтор. × {log.sets} подход.
-                    </p>
-                    <p className="text-gray-500 text-xs mt-2">
-                      {new Date(log.created_at).toLocaleString('ru-RU')}
-                    </p>
+                    <p className="text-gray-400 text-sm mt-1">{log.weight} кг × {log.reps} повтор. × {log.sets} подход.</p>
+                    <p className="text-gray-500 text-xs mt-2">{new Date(log.created_at).toLocaleString('ru-RU')}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => setEditingLog({ ...log })}
-                      className="p-1.5 text-blue-400 hover:text-blue-300 transition"
-                      title="Редактировать"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(log)}
-                      className="p-1.5 text-red-400 hover:text-red-300 transition"
-                      title="Удалить"
-                    >
-                      🗑️
-                    </button>
+                    <button onClick={() => setEditingLog({ ...log })} className="p-1.5 text-blue-400 hover:text-blue-300 transition" title="Редактировать">✏️</button>
+                    <button onClick={() => setDeleteConfirm(log)} className="p-1.5 text-red-400 hover:text-red-300 transition" title="Удалить">🗑️</button>
                   </div>
                 </div>
               )}
@@ -715,111 +947,45 @@ function JournalPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-bold text-white mb-4">Добавить подход</h2>
-
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Тренировка</label>
-                <select
-                  value={newLog.training_id}
-                  onChange={(e) => setNewLog({ ...newLog, training_id: Number(e.target.value) })}
-                  className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
+                <select value={newLog.training_id} onChange={(e) => setNewLog({ ...newLog, training_id: Number(e.target.value) })} className="w-full p-3 rounded-lg bg-gray-700 text-white">
                   <option value={0}>Выберите тренировку</option>
-                  {trainings.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
+                  {trainings.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm text-gray-400 mb-1">Упражнение</label>
-                <input
-                  type="text"
-                  value={newLog.exercise_name}
-                  onChange={(e) => setNewLog({ ...newLog, exercise_name: e.target.value })}
-                  placeholder="Например: Жим лежа"
-                  className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                  list="exercises"
-                />
+                <input type="text" value={newLog.exercise_name} onChange={(e) => setNewLog({ ...newLog, exercise_name: e.target.value })} placeholder="Например: Жим лежа" className="w-full p-3 rounded-lg bg-gray-700 text-white" list="exercises" />
                 <datalist id="exercises">
-                  <option>Жим лежа</option>
-                  <option>Приседания</option>
-                  <option>Становая тяга</option>
-                  <option>Подтягивания</option>
-                  <option>Отжимания</option>
-                  <option>Жим гантелей</option>
-                  <option>Тяга штанги</option>
+                  <option>Жим лежа</option><option>Приседания</option><option>Становая тяга</option><option>Подтягивания</option>
+                  <option>Отжимания</option><option>Жим гантелей</option><option>Тяга штанги</option>
                 </datalist>
               </div>
-
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Вес (кг)</label>
-                  <input
-                    type="number"
-                    value={newLog.weight || ''}
-                    onChange={(e) => setNewLog({ ...newLog, weight: Number(e.target.value) })}
-                    className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Повторения</label>
-                  <input
-                    type="number"
-                    value={newLog.reps || ''}
-                    onChange={(e) => setNewLog({ ...newLog, reps: Number(e.target.value) })}
-                    className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Подходы</label>
-                  <input
-                    type="number"
-                    value={newLog.sets}
-                    onChange={(e) => setNewLog({ ...newLog, sets: Number(e.target.value) })}
-                    className="w-full p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
+                <div><label className="block text-sm text-gray-400 mb-1">Вес (кг)</label><input type="number" value={newLog.weight || ''} onChange={(e) => setNewLog({ ...newLog, weight: Number(e.target.value) })} className="w-full p-3 rounded-lg bg-gray-700 text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Повторения</label><input type="number" value={newLog.reps || ''} onChange={(e) => setNewLog({ ...newLog, reps: Number(e.target.value) })} className="w-full p-3 rounded-lg bg-gray-700 text-white" /></div>
+                <div><label className="block text-sm text-gray-400 mb-1">Подходы</label><input type="number" value={newLog.sets} onChange={(e) => setNewLog({ ...newLog, sets: Number(e.target.value) })} className="w-full p-3 rounded-lg bg-gray-700 text-white" /></div>
               </div>
-
               <div className="flex gap-3 pt-4">
-                <button
-                  onClick={addLog}
-                  className="flex-1 p-2 bg-green-500 hover:bg-green-600 rounded-lg transition"
-                >
-                  Сохранить
-                </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 p-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition"
-                >
-                  Отмена
-                </button>
+                <button onClick={addLog} className="flex-1 p-2 bg-green-500 rounded-lg">Сохранить</button>
+                <button onClick={() => setShowModal(false)} className="flex-1 p-2 bg-gray-600 rounded-lg">Отмена</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Подтверждение удаления подхода */}
+      {/* Подтверждение удаления */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-xl p-6 w-full max-w-md">
             <h2 className="text-xl font-bold text-white mb-4">Подтверждение удаления</h2>
-            <p className="text-gray-300 mb-6">
-              Вы уверены, что хотите удалить подход:
-              <br />
-              <strong className="text-white">"{deleteConfirm.exercise_name}"</strong>
-              <br />
-              <span className="text-sm text-gray-400">{deleteConfirm.weight} кг × {deleteConfirm.reps} повтор. × {deleteConfirm.sets} подход.</span>
-            </p>
+            <p className="text-gray-300 mb-6">Удалить подход: <strong className="text-white">"{deleteConfirm.exercise_name}"</strong> ({deleteConfirm.weight} кг × {deleteConfirm.reps} повтор. × {deleteConfirm.sets} подход.)?</p>
             <div className="flex gap-3">
-              <button onClick={() => deleteLog(deleteConfirm)} className="flex-1 p-2 bg-red-500 hover:bg-red-600 rounded-lg transition">
-                Удалить
-              </button>
-              <button onClick={() => setDeleteConfirm(null)} className="flex-1 p-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition">
-                Отмена
-              </button>
+              <button onClick={() => deleteLog(deleteConfirm)} className="flex-1 p-2 bg-red-500 rounded-lg">Удалить</button>
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 p-2 bg-gray-600 rounded-lg">Отмена</button>
             </div>
           </div>
         </div>
@@ -981,6 +1147,8 @@ function App() {
         <Route path="/trainings" element={<Layout><TrainingsPage /></Layout>} />
         <Route path="/journal" element={<Layout><JournalPage /></Layout>} />
         <Route path="/ai" element={<Layout><AIPage /></Layout>} />
+        <Route path="/recipes" element={<Layout><RecipeBook /></Layout>} />
+<Route path="/recipes/:id" element={<Layout><RecipeDetail /></Layout>} />
       </Routes>
     </BrowserRouter>
   );
