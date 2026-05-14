@@ -1,34 +1,37 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import hashlib
+import secrets
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.config import settings
 from app.database import get_db
 from app.models import User
 
-# Настройка bcrypt с ограничением длины пароля
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 security = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    # Обрезаем пароль до 72 символов (максимум для bcrypt)
-    truncated_password = plain_password[:72]
-    return pwd_context.verify(truncated_password, hashed_password)
+    """Проверка пароля с использованием SHA256"""
+    salt = hashed_password[:32]  # Первые 32 символа - соль
+    stored_hash = hashed_password[32:]  # Остальное - хеш
+    new_hash = hashlib.sha256((salt + plain_password).encode()).hexdigest()
+    return new_hash == stored_hash
 
 
 def get_password_hash(password: str) -> str:
-    # Обрезаем пароль до 72 символов перед хешированием
-    truncated_password = password[:72]
-    return pwd_context.hash(truncated_password)
+    """Хеширование пароля с солью"""
+    salt = secrets.token_hex(16)  # 16 байт = 32 символа в hex
+    hash_value = hashlib.sha256((salt + password).encode()).hexdigest()
+    return salt + hash_value  # Возвращаем соль + хеш
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Создание JWT токена"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -43,7 +46,7 @@ async def get_current_user(
         credentials: HTTPAuthorizationCredentials = Depends(security),
         db: AsyncSession = Depends(get_db)
 ) -> User:
-    """Проверяет JWT токен и возвращает текущего пользователя."""
+    """Получение текущего пользователя по токену"""
     token = credentials.credentials
 
     try:
@@ -54,7 +57,6 @@ async def get_current_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    from sqlalchemy import select
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 

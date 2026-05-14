@@ -11,27 +11,28 @@ app = FastAPI(title="FitTrackerAi API", version="1.0.0")
 # CORS настройки
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["http://localhost:5173", "http://localhost", "http://localhost:80"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Регистрация роутеров
-app.include_router(auth.router)
-app.include_router(trainings.router)
-app.include_router(ai.router)
-app.include_router(recipes.router)
+# Регистрация роутеров с префиксом /api
+app.include_router(auth.router, prefix="/api")
+app.include_router(trainings.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
+app.include_router(recipes.router, prefix="/api")
 
-# Создаём папку для картинок, если её нет
+# Создаём папку для картинок
 os.makedirs("static/images", exist_ok=True)
 
-# Подключаем статику - ВАЖНО: должно быть после роутеров!
+# Подключаем статику
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.on_event("startup")
 async def startup():
     await init_db()
+    print("✅ Database initialized")
 
 @app.get("/")
 async def root():

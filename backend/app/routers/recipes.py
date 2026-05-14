@@ -11,7 +11,7 @@ from app.database import get_db
 from app.models import User, Recipe
 from app.auth import get_current_user
 
-router = APIRouter(prefix="/recipes", tags=["recipes"])
+router = APIRouter(tags=["recipes"])
 
 
 class RecipeCreate(BaseModel):
@@ -43,13 +43,12 @@ class RecipeResponse(BaseModel):
     user_id: int
 
 
-@router.post("/", response_model=RecipeResponse)
+@router.post("/recipes", response_model=RecipeResponse)
 async def create_recipe(
         recipe_data: RecipeCreate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Создание нового рецепта"""
     recipe = Recipe(
         user_id=current_user.id,
         title=recipe_data.title,
@@ -84,41 +83,33 @@ async def create_recipe(
     )
 
 
-@router.post("/upload-image")
-async def upload_image(
+@router.post("/recipes/upload-image")
+async def upload_recipe_image(
         file: UploadFile = File(...),
         current_user: User = Depends(get_current_user)
 ):
-    """Загрузка картинки для рецепта"""
-    # Проверяем тип файла
     if not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Файл должен быть изображением")
 
-    # Создаём папку если её нет
     os.makedirs("static/images", exist_ok=True)
 
-    # Создаём уникальное имя файла
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_filename = file.filename.replace(" ", "_")
-    filename = f"{timestamp}_{current_user.id}_{safe_filename}"
+    filename = f"recipe_{timestamp}_{current_user.id}_{safe_filename}"
     filepath = f"static/images/{filename}"
 
-    # Сохраняем файл
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Возвращаем URL для доступа к картинке
     image_url = f"/static/images/{filename}"
-
     return {"image_url": image_url}
 
 
-@router.get("/", response_model=List[RecipeResponse])
+@router.get("/recipes", response_model=List[RecipeResponse])
 async def get_recipes(
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Получение всех рецептов пользователя"""
     result = await db.execute(
         select(Recipe).where(Recipe.user_id == current_user.id).order_by(Recipe.created_at.desc())
     )
@@ -144,13 +135,12 @@ async def get_recipes(
     ]
 
 
-@router.get("/{recipe_id}", response_model=RecipeResponse)
+@router.get("/recipes/{recipe_id}", response_model=RecipeResponse)
 async def get_recipe(
         recipe_id: int,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Получение одного рецепта"""
     result = await db.execute(
         select(Recipe).where(Recipe.id == recipe_id, Recipe.user_id == current_user.id)
     )
@@ -176,14 +166,13 @@ async def get_recipe(
     )
 
 
-@router.put("/{recipe_id}", response_model=RecipeResponse)
+@router.put("/recipes/{recipe_id}", response_model=RecipeResponse)
 async def update_recipe(
         recipe_id: int,
         recipe_data: RecipeCreate,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Обновление рецепта"""
     result = await db.execute(
         select(Recipe).where(Recipe.id == recipe_id, Recipe.user_id == current_user.id)
     )
@@ -223,13 +212,12 @@ async def update_recipe(
     )
 
 
-@router.delete("/{recipe_id}")
+@router.delete("/recipes/{recipe_id}")
 async def delete_recipe(
         recipe_id: int,
         current_user: User = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
-    """Удаление рецепта"""
     result = await db.execute(
         select(Recipe).where(Recipe.id == recipe_id, Recipe.user_id == current_user.id)
     )
@@ -238,7 +226,6 @@ async def delete_recipe(
     if not recipe:
         raise HTTPException(status_code=404, detail="Recipe not found")
 
-    # Удаляем картинку, если она есть
     if recipe.image_url:
         image_path = recipe.image_url.lstrip('/')
         if os.path.exists(image_path):
